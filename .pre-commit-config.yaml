@@ -1,0 +1,39 @@
+---
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: debug-statements
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: name-tests-test
+        exclude: tests/(common.py|util.py|(helpers|integration/factories)/(.+).py)
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        description: ''
+        entry: poetry run mypy
+        language: system
+        'types_or': [python, pyi]
+        args: ["--ignore-missing-imports", "--scripts-are-modules"]
+        require_serial: true
+        additional_dependencies: []
+      - id: black
+        name: black
+        description: "Black: The uncompromising Python code formatter"
+        entry: poetry run black
+        language: system
+        require_serial: true
+        types_or: [python, pyi]
+      - id: isort
+        name: isort
+        entry: poetry run isort
+        stages: [pre-commit, pre-merge-commit, pre-push, manual]
+        require_serial: true
+        language: system
+        types_or: [cython, pyi, python]
+        exclude: docs/
+        args: ["--profile", "black", "--filter-files"]
