@@ -10,6 +10,9 @@ authors = ["iamthefij"]
 license = "MIT"
 readme = "README.md"
 
+[tool.poetry.scripts]
+sunshine-res = "sunshine_res:main"
+
 [tool.poetry.dependencies]
 python = "^3.11"
 
