@@ -1,8 +1,8 @@
 import json
-import sys
 from pathlib import Path
 from tempfile import mktemp
-from typing import Any
+from typing import cast
+from typing import override
 
 import pytest
 
@@ -10,7 +10,6 @@ import pytest
 from sunshine_res.types import MonitorInfo
 from sunshine_res.types import MonitorMode
 from sunshine_res.types import ResolutionManager
-from sunshine_res.types import ScreenSize
 
 
 class DummyResolutionManager(ResolutionManager):
@@ -37,9 +36,11 @@ class DummyResolutionManager(ResolutionManager):
     # ----------------------------------------------------------------------
     #  Platform specific hooks
     # ----------------------------------------------------------------------
+    @override
     def query_monitor_info(self) -> MonitorInfo:
         return self._monitor_info
 
+    @override
     def apply_mode(
         self, output_name: str, mode: MonitorMode, hdr: bool = False
     ) -> None:
@@ -72,7 +73,7 @@ def _build_monitor_info(
 # ----------------------------------------------------------------------
 #  Tests
 # ----------------------------------------------------------------------
-def test_constructor_initialises_attributes():
+def test_constructor_initialises_attributes() -> None:
     mgr = DummyResolutionManager(
         1280,
         720,
@@ -86,7 +87,9 @@ def test_constructor_initialises_attributes():
     assert mgr.client_hdr is True
 
 
-def test_do_resolution_already_matches_exits(capsys):
+def test_do_resolution_already_matches_exits(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     # Current mode matches requested resolution
     current = _build_mode(1920, 1080, 60)
     monitor_info = _build_monitor_info([current], current)
@@ -94,12 +97,12 @@ def test_do_resolution_already_matches_exits(capsys):
 
     mgr.do()
 
-    out, err = capsys.readouterr()
+    out, _ = capsys.readouterr()
     assert "Resolution already matches." in out
     assert not mgr.apply_calls  # nothing was applied
 
 
-def test_do_no_matching_modes_raises_value_error():
+def test_do_no_matching_modes_raises_value_error() -> None:
     # No mode with the requested resolution
     modes = [_build_mode(1280, 720, 60), _build_mode(800, 600, 60)]
     monitor_info = _build_monitor_info(modes, modes[0])
@@ -120,8 +123,8 @@ def test_do_no_matching_modes_raises_value_error():
     ],
 )
 def test_fps_selection(
-    tmp_path: Path, fps_requested: int, available_fps: list[int], expected_fps: int
-):
+    fps_requested: int, available_fps: list[int], expected_fps: int
+) -> None:
     # Build monitor modes that all match the requested resolution
     modes = [_build_mode(1920, 1080, fp) for fp in available_fps]
     current = _build_mode(1280, 720, 60)
@@ -136,7 +139,7 @@ def test_fps_selection(
     assert selected_mode["fps"] == expected_fps
 
 
-def test_do_writes_last_mode_file(tmp_path: Path):
+def test_do_writes_last_mode_file() -> None:
     modes = [_build_mode(1920, 1080, 60)]
     current = _build_mode(1280, 720, 60)
     monitor_info = _build_monitor_info(modes, current)
@@ -146,16 +149,17 @@ def test_do_writes_last_mode_file(tmp_path: Path):
     mgr.do()
 
     assert mgr.last_mode.exists()
-    data = json.loads(mgr.last_mode.read_text())
+    data: MonitorInfo = cast(MonitorInfo, json.loads(mgr.last_mode.read_text()))
     assert data == monitor_info
 
 
-def test_do_creates_parent_directory_if_missing(tmp_path: Path):
+def test_do_creates_parent_directory_if_missing(tmp_path: Path) -> None:
     # Parent directory deliberately missing
     parent = tmp_path / "missing"
     if parent.exists():
         # ensure clean start
         parent.rmdir()
+
     modes = [_build_mode(1920, 1080, 60)]
     current = _build_mode(1280, 720, 60)
     monitor_info = _build_monitor_info(modes, current)
@@ -169,36 +173,37 @@ def test_do_creates_parent_directory_if_missing(tmp_path: Path):
     assert mgr.last_mode.exists()
 
 
-def test_undo_applies_stored_mode_and_removes_file(tmp_path: Path):
+def test_undo_applies_stored_mode_and_removes_file() -> None:
     modes = [_build_mode(1920, 1080, 60)]
     current = _build_mode(1280, 720, 60)
     monitor_info = _build_monitor_info(modes, current)
 
     mgr = DummyResolutionManager(1920, 1080, 60, monitor_info=monitor_info)
     # Pretend the file already contains the original monitor info
-    mgr.last_mode.write_text(json.dumps(monitor_info))
+    _ = mgr.last_mode.write_text(json.dumps(monitor_info))
 
     mgr.undo()
 
     # One call to apply_mode with the stored mode
     assert len(mgr.apply_calls) == 1
     output_name, mode, hdr = mgr.apply_calls[0]
+    assert output_name == monitor_info["output_name"]
     assert mode == monitor_info["current_mode"]
     assert hdr == monitor_info["hdr"]
     # File should be removed
     assert not mgr.last_mode.exists()
 
 
-def test_undo_no_file_exits_gracefully():
+def test_undo_no_file_exits_gracefully() -> None:
     monitor_info = _build_monitor_info([], _build_mode(1280, 720, 60))
     mgr = DummyResolutionManager(1920, 1080, 60, monitor_info=monitor_info)
 
     mgr.undo()
 
-    assert not mgr.apply_calls  # nothing was applied
+    assert not mgr.apply_calls
 
 
-def test_toggle_calls_do_when_no_backup():
+def test_toggle_calls_do_when_no_backup() -> None:
     monitor_info = _build_monitor_info([], _build_mode(1280, 720, 60))
     mgr = DummyResolutionManager(1920, 1080, 60, monitor_info=monitor_info)
 
@@ -222,7 +227,7 @@ def test_toggle_calls_do_when_no_backup():
     assert called == ["do"]
 
 
-def test_toggle_calls_undo_when_backup_present(tmp_path: Path):
+def test_toggle_calls_undo_when_backup_present(tmp_path: Path) -> None:
     monitor_info = _build_monitor_info([], _build_mode(1280, 720, 60))
     mgr = DummyResolutionManager(1920, 1080, 60, monitor_info=monitor_info)
 
@@ -239,7 +244,7 @@ def test_toggle_calls_undo_when_backup_present(tmp_path: Path):
 
     # Create a dummy backup file
     mgr.last_mode = tmp_path / "last_mode.json"
-    mgr.last_mode.write_text("{}")
+    _ = mgr.last_mode.write_text("{}")
 
     mgr.toggle()
 
