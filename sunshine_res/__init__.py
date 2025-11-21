@@ -20,6 +20,7 @@ import os
 import sys
 
 from sunshine_res.cosmic import CosmicRandr
+from sunshine_res.gnome import GnomeRandr
 from sunshine_res.kde import KscreenDoctor
 from sunshine_res.types import ResolutionManager
 
@@ -32,6 +33,7 @@ SUNSHINE_CLIENT_HDR = bool(os.getenv("SUNSHINE_CLIENT_HDR")) == True
 DESKTOP_TO_CLASS: dict[str, type[ResolutionManager]] = {
     "KDE": KscreenDoctor,
     "COSMIC": CosmicRandr,
+    "GNOME": GnomeRandr,
 }
 
 
@@ -49,7 +51,7 @@ def main() -> None:
     # Find a manager class that matches
     manager: ResolutionManager
     for desktop in current_desktop.split(":"):
-        if mc := DESKTOP_TO_CLASS.get(desktop):
+        if mc := DESKTOP_TO_CLASS.get(desktop.upper()):
             manager = mc(
                 client_width=SUNSHINE_CLIENT_WIDTH,
                 client_height=SUNSHINE_CLIENT_HEIGHT,
