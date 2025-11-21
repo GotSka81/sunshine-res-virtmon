@@ -44,8 +44,8 @@ def tests():
         "workspace": get_workspace(),
         "steps": [
             {
-                "name": f"test Python {version}",
-                "image": f"python:{version}",
+                "name": "test Python "+version,
+                "image": "python:"+version,
                 "commands": [
                     "python -V",
                     "pip install poetry",
