@@ -60,14 +60,14 @@ class ResolutionManager:
     ) -> None:
         raise NotImplementedError()
 
-    def do(self):
+    def do(self) -> None:
         monitor_info = self.query_monitor_info()
         if (
             monitor_info["current_mode"]["width"],
             monitor_info["current_mode"]["height"],
         ) == (self.client_width, self.client_height):
             print("Resolution already matches.")
-            exit(0)
+            return
 
         # Filter modes to matching resolution
         matched_modes = [
@@ -89,10 +89,11 @@ class ResolutionManager:
 
         # Get the mode with the closest refreshrate but not below
         # Eg. if 25 is requested, and 20 and 30 are offered, return 30
-        select_mode = matched_modes[0]
-        for mode in matched_modes[1:]:
+        select_mode: MonitorMode = matched_modes[-1]
+        for mode in matched_modes:
+            select_mode = mode
             if mode["fps"] >= self.client_fps:
-                select_mode = mode
+                break
 
         self.apply_mode(monitor_info["output_name"], select_mode, hdr=self.client_hdr)
 
@@ -105,7 +106,7 @@ class ResolutionManager:
     def undo(self) -> None:
         # Check previous mode
         if not self.last_mode.exists():
-            exit(0)
+            return
 
         info: MonitorInfo = cast(MonitorInfo, json.loads(self.last_mode.read_text()))
 

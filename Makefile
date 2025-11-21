@@ -24,7 +24,7 @@ lint:
 # Runs tests
 .PHONY: test
 test:
-	poetry run python -m coverage run -m unittest discover tests --pattern "*_test.py"
+	poetry run coverage run -m pytest tests/
 
 # Builds wheel for package to upload
 .PHONY: build
