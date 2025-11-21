@@ -14,7 +14,7 @@ readme = "README.md"
 sunshine-res = "sunshine_res:main"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.12"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
