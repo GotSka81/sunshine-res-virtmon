@@ -4,16 +4,10 @@
 
 ## Installation
 
-The project is distributed as a Poetry package. If you already have Poetry installed:
+You can install sunshine-res system‑wide (or inside a virtualenv) with:
 
 ```bash
-poetry install
-```
-
-Alternatively, you can install it system‑wide (or inside a virtualenv) with:
-
-```bash
-pip install .
+pipx install sunshine-res
 ```
 
 The tool installs a console script called `sunshine-res` that can be invoked from anywhere.
@@ -29,6 +23,8 @@ The utility accepts three commands:
 | `auto` | Toggle between the two states. If a previous `do` was performed, `undo` will be run; otherwise `do` will be executed. This is the default if no command is given. |
 
 ### Configuring Sunshine
+
+After installing sunshine-res, you must configure Sunshine to use the utility.
 
 1. Open Sunshine and go to the Configuration tab (probably https://localhost:47990/config)
 2. In the Command Preparations section, click "+ Add" to add a new command
