@@ -28,6 +28,13 @@ The utility accepts three commands:
 | `undo` | Revert the monitor to the original mode that was active before the last `do`. |
 | `auto` | Toggle between the two states. If a previous `do` was performed, `undo` will be run; otherwise `do` will be executed. This is the default if no command is given. |
 
+### Configuring Sunshine
+
+1. Open Sunshine and go to the Configuration tab (probably http://localhost:47990/config)
+2. In the Command Preparations section, click "+ Add" to add a new command
+3. Set the do and undo commands to `sunshine-res do` and `sunshine-res undo` respectively
+4. Save
+
 ### Example
 
 ```bash
