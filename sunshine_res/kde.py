@@ -96,7 +96,7 @@ class KscreenDoctor(ResolutionManager):
         _ = check_call(
             [
                 "kscreen-doctor",
-                f"output.{output_name}.mode.{mode["id"]}",
-                f"output.{output_name}.hdr.{"enable" if hdr else "disable"}",
+                f"output.{output_name}.mode.{mode['id']}",
+                f"output.{output_name}.hdr.{'enable' if hdr else 'disable'}",
             ]
         )
