@@ -30,7 +30,7 @@ The utility accepts three commands:
 
 ### Configuring Sunshine
 
-1. Open Sunshine and go to the Configuration tab (probably http://localhost:47990/config)
+1. Open Sunshine and go to the Configuration tab (probably https://localhost:47990/config)
 2. In the Command Preparations section, click "+ Add" to add a new command
 3. Set the do and undo commands to `sunshine-res do` and `sunshine-res undo` respectively
 4. Save
