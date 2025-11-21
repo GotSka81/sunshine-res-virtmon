@@ -18,12 +18,12 @@ install:
 devenv: install
 
 .PHONY: lint
-lint:
+lint: install
 	poetry run pre-commit run --all-files
 
 # Runs tests
 .PHONY: test
-test:
+test: install
 	poetry run coverage run --source sunshine_res -m pytest tests/
 
 # Builds wheel for package to upload
@@ -82,7 +82,7 @@ dist-clean: clean
 
 # Install pre-commit hooks
 .PHONY: install-hooks
-install-hooks:
+install-hooks: install
 	poetry run pre-commit install -f --install-hooks
 
 # Generates test coverage
