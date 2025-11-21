@@ -52,12 +52,12 @@ class ResolutionManager:
         self.client_hdr: bool = client_hdr
         self.last_mode: Path = Path("~/.config/sunshine/last_mode.json").expanduser()
 
-    def query_monitor_info(self) -> MonitorInfo:
+    def query_monitor_info(self) -> MonitorInfo:  # pragma: no cover
         raise NotImplementedError()
 
     def apply_mode(
         self, output_name: str, mode: MonitorMode, hdr: bool = False
-    ) -> None:
+    ) -> None:  # pragma: no cover
         raise NotImplementedError()
 
     def do(self) -> None:

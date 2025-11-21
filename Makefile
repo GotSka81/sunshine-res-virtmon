@@ -24,7 +24,7 @@ lint:
 # Runs tests
 .PHONY: test
 test:
-	poetry run coverage run -m pytest tests/
+	poetry run coverage run --source sunshine_res -m pytest tests/
 
 # Builds wheel for package to upload
 .PHONY: build
