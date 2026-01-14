@@ -1,0 +1,10 @@
+LICENSE
+pyproject.toml
+
+# builds
+Makefile
+
+# docs
+README.md
+docs/source/conf.py
+docs/source/index.rst
