@@ -16,8 +16,12 @@ Usage:
 sunshine-res [do/undo/auto]
 """
 
+import argparse
 import os
 import sys
+from argparse import Namespace
+from typing import NamedTuple
+from typing import cast
 
 from sunshine_res.cosmic import CosmicRandr
 from sunshine_res.gnome import GnomeRandr
@@ -37,6 +41,39 @@ DESKTOP_TO_CLASS: dict[str, type[ResolutionManager]] = {
 }
 
 
+class SunshineResArgs(NamedTuple):
+    command: str
+    supersample: float
+
+
+def parse_args(sys_argv: list[str]) -> SunshineResArgs:
+    parser = argparse.ArgumentParser(
+        "sunshine-res", description="Sunshine Resolution Manager"
+    )
+
+    _ = parser.add_argument(
+        "command",
+        type=str,
+        nargs="?",
+        default="auto",
+        help="Command to execute: do, undo, auto (default: auto)",
+    )
+
+    _ = parser.add_argument(
+        "-s",
+        "--supersample",
+        type=float,
+        default=1.0,
+        help="Supersampling scale factor (default: 1.0, disabled)",
+    )
+
+    parsed_args = parser.parse_args(sys_argv[1:])
+    return SunshineResArgs(
+        command=cast(str, parsed_args.command),
+        supersample=cast(float, parsed_args.supersample),
+    )
+
+
 def main() -> None:
     """Entry point for sunshine-res command line tool."""
     # Get the currently listed desktop
@@ -48,6 +85,8 @@ def main() -> None:
         print("ERROR: Could not determine current desktop")
         exit(1)
 
+    args = parse_args(sys.argv)
+
     # Find a manager class that matches
     manager: ResolutionManager
     for desktop in current_desktop.split(":"):
@@ -57,6 +96,7 @@ def main() -> None:
                 client_height=SUNSHINE_CLIENT_HEIGHT,
                 client_fps=SUNSHINE_CLIENT_FPS,
                 client_hdr=SUNSHINE_CLIENT_HDR,
+                supersample_scale=args.supersample,
             )
             break
     else:

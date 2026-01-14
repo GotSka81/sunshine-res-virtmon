@@ -1,7 +1,10 @@
 """Common type definitions for monitor and screen information."""
 
 import json
+from math import floor
+from math import gcd
 from pathlib import Path
+from typing import NamedTuple
 from typing import TypedDict
 from typing import cast
 
@@ -45,9 +48,12 @@ class ResolutionManager:
         client_height: int,
         client_fps: int,
         client_hdr: bool = False,
+        supersample_scale: float = 1.0,
     ) -> None:
-        self.client_width: int = client_width
-        self.client_height: int = client_height
+        self.client_aspect_by_nine: int = floor(client_width / client_height * 9)
+        # NOTE: Using floor here because we match to greater-than-or-equal resolutions later
+        self.client_width: int = floor(client_width * supersample_scale)
+        self.client_height: int = floor(client_height * supersample_scale)
         self.client_fps: int = client_fps
         self.client_hdr: bool = client_hdr
         self.last_mode: Path = Path("~/.config/sunshine/last_mode.json").expanduser()
@@ -79,13 +85,45 @@ class ResolutionManager:
             )
         ]
 
-        # Sort by fps
-        matched_modes.sort(key=lambda m: m["fps"])
+        if not matched_modes:
+            # No exact modes, so look for the nearest match with the same aspect larger than the target resolution
+            acceptable_resolution: None | ScreenSize = None
+            for mode in monitor_info["modes"]:
+                if (
+                    floor(mode["width"] / mode["height"] * 9)
+                    != self.client_aspect_by_nine
+                ):
+                    continue
+                if (
+                    mode["width"] >= self.client_width
+                    and mode["height"] >= self.client_height
+                ):
+                    if acceptable_resolution is None or (
+                        mode["width"] < acceptable_resolution["width"]
+                        and mode["height"] < acceptable_resolution["height"]
+                    ):
+                        acceptable_resolution = {
+                            "width": mode["width"],
+                            "height": mode["height"],
+                        }
+
+            if acceptable_resolution is not None:
+                matched_modes = [
+                    mode
+                    for mode in monitor_info["modes"]
+                    if (
+                        mode["height"] == acceptable_resolution["height"]
+                        and mode["width"] == acceptable_resolution["width"]
+                    )
+                ]
 
         if not matched_modes:
             raise ValueError(
                 f"Did not find mode matching {self.client_width}x{self.client_height} at {monitor_info['output_name']}"
             )
+
+        # Sort by fps
+        matched_modes.sort(key=lambda m: m["fps"])
 
         # Get the mode with the closest refreshrate but not below
         # Eg. if 25 is requested, and 20 and 30 are offered, return 30
