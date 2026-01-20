@@ -85,7 +85,7 @@ class KscreenDoctor(ResolutionManager):
             output_name=output["name"],
             current_mode=current_mode,
             modes=modes,
-            hdr=output["hdr"],
+            hdr=output.get("hdr", False),
         )
 
     @override
