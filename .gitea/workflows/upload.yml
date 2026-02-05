@@ -26,7 +26,7 @@ jobs:
 
       - name: Run test upload
         env:
-          POETRY_PYPI_TOKEN: "${{ secrets.PYPI_TEST_TOKEN }}"
+          POETRY_PYPI_TOKEN_TESTPYPI: "${{ secrets.PYPI_TEST_TOKEN }}"
           POETRY_REPOSITORIES_TESTPYPI_URL: "https://test.pypi.org/legacy/"
         run: make upload-test
 
