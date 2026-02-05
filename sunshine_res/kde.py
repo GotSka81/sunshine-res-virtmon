@@ -74,7 +74,7 @@ class KscreenDoctor(ResolutionManager):
         current_mode_id = output["currentModeId"]
         for mode in output["modes"]:
             new_mode = MonitorMode(
-                id=mode["name"],
+                id=mode["id"] or mode["name"],
                 width=mode["size"]["width"],
                 height=mode["size"]["height"],
                 fps=mode["refreshRate"],
