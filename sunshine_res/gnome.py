@@ -3,6 +3,8 @@ from subprocess import check_call
 from subprocess import check_output
 from typing import override
 
+from sunshine_res.errors import CurrentModeNotFound
+from sunshine_res.errors import OutputNotFound
 from sunshine_res.types import MonitorInfo
 from sunshine_res.types import MonitorMode
 from sunshine_res.types import ResolutionManager
@@ -12,9 +14,10 @@ class GnomeRandr(ResolutionManager):
     """Designed to work with gnome-randr-rust."""
 
     def parse_randr(self, out: str) -> MonitorInfo:
-        output_name = ""
-        modes: list[MonitorMode] = []
-        current_mode: MonitorMode | None = None
+        monitors: list[MonitorInfo] = []
+        current_monitor: MonitorInfo | None = None
+
+        empty_mode = MonitorMode(id="", width=0, height=0, fps=0)
 
         for line in out.split("\n"):
             line = line.rstrip()
@@ -23,40 +26,46 @@ class GnomeRandr(ResolutionManager):
                 continue
 
             if output := re.match(r"^([A-Z][a-zA-Z]+-[0-9]+)", line):
-                print("detected output", output.group(1))
-                if output_name and output_name != output.group(1):
-                    raise ValueError(
-                        "Detected multiple output names. Check gnome-randr."
-                    )
-                output_name = output.group(1)
+                # We have a new monitor output
+                current_monitor = MonitorInfo(
+                    output_name=output.group(1),
+                    modes=[],
+                    # Set some values to be overwritten later
+                    hdr=False,
+                    current_mode=empty_mode,
+                )
+                monitors.append(current_monitor)
+
             elif mode := re.match(
                 r"^[ \t]+([0-9]+x[0-9]+@[0-9]+[\.[0-9]+]?)[ \t]+([0-9]+)x([0-9]+)[ \t]+([0-9]+[\.[0-9]+]?)([+*]?)",
                 line,
             ):
+                if not current_monitor:
+                    raise ValueError(
+                        "Could not parse gnome-randr. Found a mode before we found an output"
+                    )
+
                 this_mode = MonitorMode(
                     id=mode.group(1),
                     width=int(mode.group(2)),
                     height=int(mode.group(3)),
                     fps=round(float(mode.group(4))),
                 )
-                print("MODE: ", this_mode)
-                modes.append(this_mode)
+                current_monitor["modes"].append(this_mode)
                 if "*" in mode.group(5):
-                    current_mode = this_mode
-            else:
-                print("unparsed:", line)
+                    current_monitor["current_mode"] = this_mode
 
-        if not current_mode:
-            raise ValueError("Could not identify current mode. Check gnome-randr.")
+        for monitor in monitors:
+            if (
+                self.target_output is None
+                or self.target_output == monitor["output_name"]
+            ):
+                if monitor["current_mode"] == empty_mode:
+                    raise CurrentModeNotFound("gnome-randr", monitor["output_name"])
 
-        print("Current mode", current_mode)
-
-        return MonitorInfo(
-            output_name=output_name,
-            hdr=False,
-            modes=modes,
-            current_mode=current_mode,
-        )
+                return monitor
+        else:
+            raise OutputNotFound("gnome-randr", self.target_output)
 
     @override
     def query_monitor_info(self) -> MonitorInfo:

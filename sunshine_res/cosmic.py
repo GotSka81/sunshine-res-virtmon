@@ -3,6 +3,8 @@ from subprocess import check_call
 from subprocess import check_output
 from typing import override
 
+from sunshine_res.errors import CurrentModeNotFound
+from sunshine_res.errors import OutputNotFound
 from sunshine_res.types import MonitorInfo
 from sunshine_res.types import MonitorMode
 from sunshine_res.types import ResolutionManager
@@ -11,9 +13,10 @@ from sunshine_res.types import ResolutionManager
 class CosmicRandr(ResolutionManager):
 
     def parse_kdl(self, kdl_str: str) -> MonitorInfo:
-        output_name = ""
-        modes: list[MonitorMode] = []
-        current_mode: MonitorMode | None = None
+        monitors: list[MonitorInfo] = []
+        current_monitor: MonitorInfo | None = None
+
+        empty_mode = MonitorMode(id="", width=0, height=0, fps=0)
 
         for line in kdl_str.split("\n"):
             line = line.strip()
@@ -22,31 +25,44 @@ class CosmicRandr(ResolutionManager):
                 continue
 
             if output := re.match(r'output\s+"(.+)"', line):
-                if output_name and output_name != output.group(1):
-                    raise ValueError(
-                        "Detected multiple output names. Check cosmic-randr."
-                    )
-                output_name = output.group(1)
+                # We have a new monitor output
+                current_monitor = MonitorInfo(
+                    output_name=output.group(1),
+                    modes=[],
+                    # Set some values to be overwritten later
+                    hdr=False,
+                    current_mode=empty_mode,
+                )
+                monitors.append(current_monitor)
+
             elif mode := re.match(r"mode\s+(\d+)\s+(\d+)\s+(\d+)", line):
+                if not current_monitor:
+                    raise ValueError(
+                        "Could not parse KDL. Found a mode before we found an output"
+                    )
+
+                # We've found a mode for the current monitor
                 this_mode = MonitorMode(
                     id=None,
                     width=int(mode.group(1)),
                     height=int(mode.group(2)),
                     fps=int(mode.group(3)) / 1000,
                 )
-                modes.append(this_mode)
+                current_monitor["modes"].append(this_mode)
                 if "current=#true" in line:
-                    current_mode = this_mode
+                    current_monitor["current_mode"] = this_mode
 
-        if not current_mode:
-            raise ValueError("Could not identify current mode. Check cosmic-randr.")
+        for monitor in monitors:
+            if (
+                self.target_output is None
+                or self.target_output == monitor["output_name"]
+            ):
+                if monitor["current_mode"] == empty_mode:
+                    raise CurrentModeNotFound("cosmic-randr", monitor["output_name"])
 
-        return MonitorInfo(
-            output_name=output_name,
-            hdr=False,
-            modes=modes,
-            current_mode=current_mode,
-        )
+                return monitor
+        else:
+            raise OutputNotFound("cosmic-randr", self.target_output)
 
     @override
     def query_monitor_info(self) -> MonitorInfo:

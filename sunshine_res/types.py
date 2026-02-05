@@ -49,6 +49,7 @@ class ResolutionManager:
         client_fps: int,
         client_hdr: bool = False,
         supersample_scale: float = 1.0,
+        target_output: str | None = None,
     ) -> None:
         self.client_aspect_by_nine: int = floor(client_width / client_height * 9)
         # NOTE: Using floor here because we match to greater-than-or-equal resolutions later
@@ -56,6 +57,7 @@ class ResolutionManager:
         self.client_height: int = floor(client_height * supersample_scale)
         self.client_fps: int = client_fps
         self.client_hdr: bool = client_hdr
+        self.target_output: str | None = target_output
         self.last_mode: Path = Path("~/.config/sunshine/last_mode.json").expanduser()
 
     def query_monitor_info(self) -> MonitorInfo:  # pragma: no cover

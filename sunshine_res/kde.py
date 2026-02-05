@@ -5,6 +5,8 @@ from typing import TypedDict
 from typing import cast
 from typing import override
 
+from sunshine_res.errors import CurrentModeNotFound
+from sunshine_res.errors import OutputNotFound
 from sunshine_res.types import MonitorInfo
 from sunshine_res.types import MonitorMode
 from sunshine_res.types import ResolutionManager
@@ -58,8 +60,13 @@ class KscreenDoctor(ResolutionManager):
         out = check_output(["kscreen-doctor", "--json"])
         screen_info = cast(KScreenResult, json.loads(out))
 
-        screen_id = screen_info["screen"]["id"]
-        output = screen_info["outputs"][screen_id]
+        output: KScreenOutput
+        for o in screen_info["outputs"]:
+            if self.target_output is None or o["name"] == self.target_output:
+                output = o
+                break
+        else:
+            raise OutputNotFound("kscreen-doctor", self.target_output)
 
         # Get current mode info for restoring
         modes: list[MonitorMode] = []
@@ -77,9 +84,7 @@ class KscreenDoctor(ResolutionManager):
             modes.append(new_mode)
 
         if not current_mode:
-            raise ValueError(
-                "Could not determine the current monitor mode. Check kscreen-doctor."
-            )
+            raise CurrentModeNotFound("kscreen-doctor", output["name"])
 
         return MonitorInfo(
             output_name=output["name"],

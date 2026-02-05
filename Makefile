@@ -24,7 +24,8 @@ lint: install
 # Runs tests
 .PHONY: test
 test: install
-	poetry run coverage run --source sunshine_res -m pytest tests/
+	poetry run coverage run --source sunshine_res -m pytest tests/ --full-trace
+	poetry run coverage report
 
 # Builds wheel for package to upload
 .PHONY: build

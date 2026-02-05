@@ -44,6 +44,7 @@ DESKTOP_TO_CLASS: dict[str, type[ResolutionManager]] = {
 class SunshineResArgs(NamedTuple):
     command: str
     supersample: float
+    target_output: str | None
 
 
 def parse_args(sys_argv: list[str]) -> SunshineResArgs:
@@ -67,10 +68,19 @@ def parse_args(sys_argv: list[str]) -> SunshineResArgs:
         help="Supersampling scale factor (default: 1.0, disabled)",
     )
 
+    _ = parser.add_argument(
+        "-o",
+        "--target-output",
+        type=str,
+        default=None,
+        help="Target output for resolution updates (default: first display)",
+    )
+
     parsed_args = parser.parse_args(sys_argv[1:])
     return SunshineResArgs(
         command=cast(str, parsed_args.command),
         supersample=cast(float, parsed_args.supersample),
+        target_output=cast(str | None, parsed_args.target_output),
     )
 
 
@@ -97,6 +107,7 @@ def main() -> None:
                 client_fps=SUNSHINE_CLIENT_FPS,
                 client_hdr=SUNSHINE_CLIENT_HDR,
                 supersample_scale=args.supersample,
+                target_output=args.target_output,
             )
             break
     else:

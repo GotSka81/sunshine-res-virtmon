@@ -4,6 +4,8 @@ from unittest.mock import patch
 
 import pytest
 
+from sunshine_res.errors import CurrentModeNotFound
+from sunshine_res.errors import OutputNotFound
 from sunshine_res.gnome import GnomeRandr
 from sunshine_res.types import MonitorMode
 
@@ -53,7 +55,35 @@ display-name: "Dell Inc. 23\""
     assert monitor_info["current_mode"]["fps"] == 60.0
 
 
-def test_query_monitor_info_multi_monitor(
+def test_query_monitor_info_display_not_found(
+    manager: GnomeRandr, mock_check_output: MagicMock
+) -> None:
+    mock_check_output.return_value = b"""
+supports-mirroring: true
+layout-mode: physical
+supports-changing-layout-mode: false
+global-scale-required: false
+legacy-ui-scaling-factor: 1
+
+logical monitor 0:
+x: 0, y: 0, scale: 1, rotation: normal, primary: yes
+associated physical monitors:
+    HDMI-1 DEL Inspiron 5348 0x002206f2
+
+HDMI-1 DEL Inspiron 5348 0x002206f2
+                  1920x1080@60	    1920x1080 	60.00*+   	[x1.00+, x2.00]
+                   1280x720@59.99	1280x720  	59.99     	[x1.00+]
+is-builtin: false
+display-name: "Dell Inc. 23\""
+    """
+    with pytest.raises(
+        OutputNotFound, match="Could not find output named HDMI-2. Check gnome-randr"
+    ):
+        manager.target_output = "HDMI-2"
+        _ = manager.query_monitor_info()
+
+
+def test_query_monitor_info_multi_monitor_default(
     manager: GnomeRandr, mock_check_output: MagicMock
 ) -> None:
     mock_check_output.return_value = b"""
@@ -76,14 +106,54 @@ display-name: "Dell Inc. 23\""
 
 HDMI-2 DEL Inspiron 5348 0x002206f2
                   1920x1080@60	1920x1080 	60.00*+   	[x1.00+, x2.00]
+                   1280x720@59.99	1280x720  	59.99     	[x1.00+]
 is-builtin: false
 display-name: "Dell Inc. 23\""
     """
-    with pytest.raises(
-        ValueError,
-        match="Detected multiple output names. Check gnome-randr.",
-    ):
-        _ = manager.query_monitor_info()
+    monitor_info = manager.query_monitor_info()
+
+    assert monitor_info["output_name"] == "HDMI-1"
+    assert len(monitor_info["modes"]) == 1
+    assert monitor_info["current_mode"]["width"] == 1920
+    assert monitor_info["current_mode"]["height"] == 1080
+    assert monitor_info["current_mode"]["fps"] == 60.0
+
+
+def test_query_monitor_info_multi_monitor_specified(
+    manager: GnomeRandr, mock_check_output: MagicMock
+) -> None:
+    mock_check_output.return_value = b"""
+supports-mirroring: true
+layout-mode: physical
+supports-changing-layout-mode: false
+global-scale-required: false
+legacy-ui-scaling-factor: 1
+
+logical monitor 0:
+x: 0, y: 0, scale: 1, rotation: normal, primary: yes
+associated physical monitors:
+    HDMI-1 DEL Inspiron 5348 0x002206f2
+    HDMI-2 DEL Inspiron 5348 0x002206f2
+
+HDMI-1 DEL Inspiron 5348 0x002206f2
+                   1280x720@59.99	1280x720  	59.99     	[x1.00+]
+is-builtin: false
+display-name: "Dell Inc. 23\""
+
+HDMI-2 DEL Inspiron 5348 0x002206f2
+                  1920x1080@60	1920x1080 	60.00*+   	[x1.00+, x2.00]
+                   1280x720@59.99	1280x720  	59.99     	[x1.00+]
+is-builtin: false
+display-name: "Dell Inc. 23\""
+    """
+    manager.target_output = "HDMI-2"
+    monitor_info = manager.query_monitor_info()
+
+    assert monitor_info["output_name"] == "HDMI-2"
+    assert len(monitor_info["modes"]) == 2
+    assert monitor_info["current_mode"]["width"] == 1920
+    assert monitor_info["current_mode"]["height"] == 1080
+    assert monitor_info["current_mode"]["fps"] == 60.0
 
 
 def test_query_monitor_info_no_current(
@@ -107,8 +177,8 @@ is-builtin: false
 display-name: "Dell Inc. 23\""
     """
     with pytest.raises(
-        ValueError,
-        match="Could not identify current mode. Check gnome-randr.",
+        CurrentModeNotFound,
+        match="Could not identify current mode for output named HDMI-1. Check gnome-randr",
     ):
         _ = manager.query_monitor_info()
 

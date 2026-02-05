@@ -31,6 +31,17 @@ After installing sunshine-res, you must configure Sunshine to use the utility.
 3. Set the do and undo commands to `sunshine-res do` and `sunshine-res undo` respectively
 4. Save
 
+### Multiple outputs
+
+Sunshine-res will only manage the resolution of a single display output. By default, it will use the first one present reported by the relevant control tool. This is probably fine for many users, but if you have multiple displays and require specifying a particular display, you can append `--target-output/-o` followed by the display name reported by the appropriate command line tool for your desktop environment.
+
+Eg.
+```bash
+sunshine-res --target-output HDMI-2 auto
+```
+
+If you are unsure of what output name to use, look at the outputs listed by the appropriate tool for your desktop environement, in the [Supported Desktop Environments](#supported-desktop-environments) table.
+
 ### Supersampling
 
 Rather than having the server match the client resolution exactly, a supersampling factor can be added to instruct the server to render higher resolution images than your client and allow the client to downscale them.
