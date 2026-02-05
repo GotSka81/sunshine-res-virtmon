@@ -31,6 +31,20 @@ After installing sunshine-res, you must configure Sunshine to use the utility.
 3. Set the do and undo commands to `sunshine-res do` and `sunshine-res undo` respectively
 4. Save
 
+### Supersampling
+
+Rather than having the server match the client resolution exactly, a supersampling factor can be added to instruct the server to render higher resolution images than your client and allow the client to downscale them.
+
+This can be done by adding the `--supersample` option to the `sunshine-res` command.
+
+Eg.
+
+```bash
+sunshine-res --supersample 1.5 auto
+```
+
+This would attempt to render at 1.5× the target resolution, so if the target is 1920×1080, the server would render at the nearest resolution at or greater than 2880×1620 and the client would downscale to 1920×1080. Since the client may not support arbitrary resolutions, the server will choose the closest available mode that is at least as large as the supersampled resolution.
+
 ### Example
 
 ```bash
@@ -44,7 +58,7 @@ sunshine-res undo
 sunshine-res
 ```
 
-Environment variables are optional; defaults are:
+Environment variables are optional and typically set by Sunshine; defaults are:
 
 - `SUNSHINE_CLIENT_WIDTH`  – 1920
 - `SUNSHINE_CLIENT_HEIGHT` – 1080
