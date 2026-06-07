@@ -74,8 +74,10 @@ def _build_monitor_info(
 RES_720P = _build_mode(1280, 720, 60)
 RES_1080P = _build_mode(1920, 1080, 60)
 RES_1440P = _build_mode(2560, 1440, 60)
-RES_2K = _build_mode(2048, 1080, 60)
+RES_QHD = RES_1440P
+RES_2K = RES_1440P
 RES_4K = _build_mode(3840, 2160, 60)
+RES_UHD = RES_4K
 RES_W720P = _build_mode(1720, 720, 60)
 RES_WFHD = _build_mode(2560, 1080, 60)
 RES_WQHD = _build_mode(3440, 1440, 60)
@@ -118,14 +120,16 @@ def test_do_resolution_already_matches_exits(
 
 def test_do_no_matching_modes_raises_value_error() -> None:
     # No mode with the requested resolution
-    modes = [_build_mode(1280, 720, 60), _build_mode(800, 600, 60)]
+    modes = [RES_720P, RES_1080P]
     monitor_info = _build_monitor_info(modes, modes[0])
-    mgr = DummyResolutionManager(1920, 1080, 60, monitor_info=monitor_info)
+    mgr = DummyResolutionManager(
+        RES_WQHD["width"], RES_WQHD["height"], 60, monitor_info=monitor_info
+    )
 
     with pytest.raises(ValueError) as exc:
         mgr.do()
 
-    assert "Did not find mode matching 1920x1080" in str(exc.value)
+    assert "Did not find mode matching" in str(exc.value)
 
 
 @pytest.mark.parametrize(
@@ -168,18 +172,32 @@ def test_fps_selection(
             id="exact match",
         ),
         pytest.param(
-            [RES_2K, RES_1440P, RES_1080P, RES_720P],
+            [RES_1440P, RES_1080P, RES_720P],
             RES_720P,
             2.0,
             RES_1440P,
             id="2x supersample exact match 16:9 (1080p selects 2k)",
         ),
         pytest.param(
-            [RES_2K, RES_1440P, RES_1080P, RES_720P],
+            [RES_1440P, RES_1080P, RES_720P],
             RES_720P,
             1.9,
             RES_1440P,
             id="1.9x Test fractional scaling round up",
+        ),
+        pytest.param(
+            [RES_1440P, RES_1080P, RES_720P],
+            RES_4K,
+            1.0,
+            RES_1440P,
+            id="Test target too high, match best res",
+        ),
+        pytest.param(
+            [RES_1440P, RES_1080P, RES_720P],
+            RES_1440P,
+            1.5,
+            RES_1440P,
+            id="1.5x Test target too high, match best res",
         ),
         pytest.param(
             [

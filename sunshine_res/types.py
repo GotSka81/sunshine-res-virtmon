@@ -1,6 +1,7 @@
 """Common type definitions for monitor and screen information."""
 
 import json
+from collections.abc import Iterable
 from math import floor
 from math import gcd
 from pathlib import Path
@@ -68,6 +69,76 @@ class ResolutionManager:
     ) -> None:  # pragma: no cover
         raise NotImplementedError()
 
+    def _filter_aspect(self, modes: Iterable[MonitorMode]) -> list[MonitorMode]:
+        """Returns modes from Iterable that match the target aspect ratio."""
+        return [
+            mode
+            for mode in modes
+            if floor(mode["width"] / mode["height"] * 9) == self.client_aspect_by_nine
+        ]
+
+    def _filter_exact_res(
+        self, modes: Iterable[MonitorMode], target_res: ScreenSize | None = None
+    ) -> list[MonitorMode]:
+        """Returns modes from Iterable that match the target resolution."""
+        if target_res:
+            height = target_res["height"]
+            width = target_res["width"]
+        else:
+            height = self.client_height
+            width = self.client_width
+
+        return [
+            mode
+            for mode in modes
+            if (mode["height"] == height and mode["width"] == width)
+        ]
+
+    def _filter_nearest_larger(self, modes: Iterable[MonitorMode]) -> list[MonitorMode]:
+        """Returns modes from Iterable that are the nearest larger resolution from target."""
+        acceptable_resolution: None | ScreenSize = None
+
+        for mode in modes:
+            if (
+                mode["width"] >= self.client_width
+                and mode["height"] >= self.client_height
+            ):
+                # Resolution is greater than target
+                if acceptable_resolution is None or (
+                    mode["width"] < acceptable_resolution["width"]
+                    and mode["height"] < acceptable_resolution["height"]
+                ):
+                    # Less than currently selected acceptable res
+                    acceptable_resolution = {
+                        "width": mode["width"],
+                        "height": mode["height"],
+                    }
+
+        if acceptable_resolution is not None:
+            return self._filter_exact_res(modes, acceptable_resolution)
+
+        return []
+
+    def _filter_highest_res(self, modes: Iterable[MonitorMode]) -> list[MonitorMode]:
+        """Returns modes from Iterable that are the highest resolution from target."""
+        acceptable_resolution: None | ScreenSize = None
+
+        for mode in modes:
+            if acceptable_resolution is None or (
+                mode["width"] > acceptable_resolution["width"]
+                and mode["height"] > acceptable_resolution["height"]
+            ):
+                # Resolution is greater than current
+                acceptable_resolution = {
+                    "width": mode["width"],
+                    "height": mode["height"],
+                }
+
+        if acceptable_resolution is not None:
+            return self._filter_exact_res(modes, acceptable_resolution)
+
+        return []
+
     def do(self) -> None:
         monitor_info = self.query_monitor_info()
         if (
@@ -78,46 +149,13 @@ class ResolutionManager:
             return
 
         # Filter modes to matching resolution
-        matched_modes = [
-            mode
-            for mode in monitor_info["modes"]
-            if (
-                mode["height"] == self.client_height
-                and mode["width"] == self.client_width
-            )
-        ]
+        matched_modes = self._filter_exact_res(monitor_info["modes"])
 
         if not matched_modes:
-            # No exact modes, so look for the nearest match with the same aspect larger than the target resolution
-            acceptable_resolution: None | ScreenSize = None
-            for mode in monitor_info["modes"]:
-                if (
-                    floor(mode["width"] / mode["height"] * 9)
-                    != self.client_aspect_by_nine
-                ):
-                    continue
-                if (
-                    mode["width"] >= self.client_width
-                    and mode["height"] >= self.client_height
-                ):
-                    if acceptable_resolution is None or (
-                        mode["width"] < acceptable_resolution["width"]
-                        and mode["height"] < acceptable_resolution["height"]
-                    ):
-                        acceptable_resolution = {
-                            "width": mode["width"],
-                            "height": mode["height"],
-                        }
-
-            if acceptable_resolution is not None:
-                matched_modes = [
-                    mode
-                    for mode in monitor_info["modes"]
-                    if (
-                        mode["height"] == acceptable_resolution["height"]
-                        and mode["width"] == acceptable_resolution["width"]
-                    )
-                ]
+            aspect_modes = self._filter_aspect(monitor_info["modes"])
+            matched_modes = self._filter_nearest_larger(
+                aspect_modes
+            ) or self._filter_highest_res(aspect_modes)
 
         if not matched_modes:
             raise ValueError(
