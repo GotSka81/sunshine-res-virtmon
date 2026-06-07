@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "sunshine-res"
-version = "1.0.0"
+version = "1.0.1"
 description = "Sunshine script to match Linux desktop resolution to client"
 authors = ["iamthefij"]
 license = "MIT"
