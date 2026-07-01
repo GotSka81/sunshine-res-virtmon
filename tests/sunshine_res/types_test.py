@@ -7,9 +7,9 @@ from typing import override
 import pytest
 
 # The production code lives in the package `sunshine_res`
-from sunshine_res.types import MonitorInfo
-from sunshine_res.types import MonitorMode
-from sunshine_res.types import ResolutionManager
+from sunshine_res.resolution_manager import MonitorInfo
+from sunshine_res.resolution_manager import MonitorMode
+from sunshine_res.resolution_manager import ResolutionManager
 
 
 class DummyResolutionManager(ResolutionManager):

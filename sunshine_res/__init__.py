@@ -26,7 +26,7 @@ from typing import cast
 from sunshine_res.cosmic import CosmicRandr
 from sunshine_res.gnome import GnomeRandr
 from sunshine_res.kde import KscreenDoctor
-from sunshine_res.types import ResolutionManager
+from sunshine_res.resolution_manager import ResolutionManager
 
 SUNSHINE_CLIENT_WIDTH = int(os.getenv("SUNSHINE_CLIENT_WIDTH", 1920))
 SUNSHINE_CLIENT_HEIGHT = int(os.getenv("SUNSHINE_CLIENT_HEIGHT", 1080))

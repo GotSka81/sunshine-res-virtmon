@@ -7,7 +7,7 @@ import pytest
 from sunshine_res.errors import CurrentModeNotFound
 from sunshine_res.errors import OutputNotFound
 from sunshine_res.kde import KscreenDoctor
-from sunshine_res.types import MonitorMode
+from sunshine_res.resolution_manager import MonitorMode
 
 
 @pytest.fixture

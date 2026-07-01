@@ -5,9 +5,9 @@ from typing import override
 
 from sunshine_res.errors import CurrentModeNotFound
 from sunshine_res.errors import OutputNotFound
-from sunshine_res.types import MonitorInfo
-from sunshine_res.types import MonitorMode
-from sunshine_res.types import ResolutionManager
+from sunshine_res.resolution_manager import MonitorInfo
+from sunshine_res.resolution_manager import MonitorMode
+from sunshine_res.resolution_manager import ResolutionManager
 
 
 class CosmicRandr(ResolutionManager):
