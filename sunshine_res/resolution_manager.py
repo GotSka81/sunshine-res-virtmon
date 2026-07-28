@@ -302,10 +302,17 @@ class VirtualDisplayManager:
             try:
                 out = subprocess.check_output(["kscreen-doctor", "--json"])
                 data = json.loads(out)
+                command = ["kscreen-doctor"]
+                
                 for output in data.get("outputs", []):
                     if output["name"] != exclude and output.get("connected") and output.get("enabled"):
                         disabled_displays.append(output["name"])
-                        subprocess.run(["kscreen-doctor", f"output.{output['name']}.disable"], check=False)
+                        command.append(f"output.{output['name']}.disable")
+                
+                # Execute all display changes in a single command transaction to prevent KWin issues
+                if len(command) > 1:
+                    subprocess.run(command, check=False)
+                    
             except Exception as e:
                 print(f"Failed to disable KDE displays: {e}")
                 
@@ -323,8 +330,13 @@ class VirtualDisplayManager:
             for d in displays:
                 subprocess.run(["swaymsg", "output", d, "enable"], check=False)
         elif "kde" in self.desktop_env or "plasma" in self.desktop_env:
+            command = ["kscreen-doctor"]
             for d in displays:
-                subprocess.run(["kscreen-doctor", f"output.{d}.enable"], check=False)
+                command.append(f"output.{d}.enable")
+                
+            # Execute all display restorations in a single transaction
+            if len(command) > 1:
+                subprocess.run(command, check=False)
 
     def _create_hyprland_display(self) -> str:
         # Spawn the headless output
@@ -349,8 +361,11 @@ class VirtualDisplayManager:
         return output_name
 
     def _create_kde_display(self) -> str:
-        # 1. Spawn the virtual monitor process in the background
-        # krfb-virtualmonitor requires password and port arguments even when not utilizing VNC
+        # 1. Record existing outputs before spawning the virtual monitor
+        out = subprocess.check_output(["kscreen-doctor", "--json"])
+        initial_outputs = {o["name"] for o in json.loads(out).get("outputs", [])}
+        
+        # 2. Spawn the virtual monitor process
         subprocess.Popen([
             "krfb-virtualmonitor", 
             "--name", "sunshine-vm", 
@@ -359,20 +374,29 @@ class VirtualDisplayManager:
             "--port", "5905"
         ])
         
-        # Give KWin a moment to initialize the display
-        time.sleep(2)
+        # 3. Poll for up to 5 seconds to capture KWin's dynamic output name (e.g. Virtual-1)
+        output_name = None
+        for _ in range(10): 
+            time.sleep(0.5)
+            out = subprocess.check_output(["kscreen-doctor", "--json"])
+            current_outputs = {o["name"] for o in json.loads(out).get("outputs", [])}
+            new_outputs = current_outputs - initial_outputs
+            if new_outputs:
+                output_name = list(new_outputs)[0]
+                break
+                
+        if not output_name:
+            print("Failed to detect the new virtual display in kscreen-doctor.")
+            return ""
         
-        # 2. KDE prepends "Virtual-" to the assigned name
-        output_name = "Virtual-sunshine-vm"
-        
-        # 3. Add custom mode and set refresh rate (unit is mHz for addCustomMode)
+        # 4. Add custom mode and set refresh rate (unit is mHz for addCustomMode)
         mhz = int(self.client_fps * 1000)
         subprocess.run([
             "kscreen-doctor", 
             f"output.{output_name}.addCustomMode.{self.client_width}.{self.client_height}.{mhz}.full"
         ], check=False)
         
-        # 4. Apply the exact mode and HDR state
+        # 5. Apply the exact mode and HDR state
         hdr_state = "enable" if self.client_hdr else "disable"
         subprocess.run([
             "kscreen-doctor", 
