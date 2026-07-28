@@ -396,13 +396,17 @@ class VirtualDisplayManager:
             f"output.{output_name}.addCustomMode.{self.client_width}.{self.client_height}.{mhz}.full"
         ], check=False)
         
-        # 5. Apply the exact mode and HDR state
+        # 5. Explicitly ENABLE the display, then apply the exact mode and HDR state
         hdr_state = "enable" if self.client_hdr else "disable"
         subprocess.run([
             "kscreen-doctor", 
+            f"output.{output_name}.enable",
             f"output.{output_name}.mode.{self.client_width}x{self.client_height}@{self.client_fps}",
             f"output.{output_name}.hdr.{hdr_state}"
         ], check=False)
+        
+        # 6. Give KWin a moment to fully initialize the display's active state
+        time.sleep(1)
         
         return output_name
 
