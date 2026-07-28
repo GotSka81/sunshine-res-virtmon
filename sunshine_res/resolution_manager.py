@@ -1,6 +1,8 @@
 """Common type definitions for monitor and screen information."""
 
 import json
+import os
+import subprocess
 from collections.abc import Iterable
 from math import floor
 from math import gcd
@@ -199,3 +201,98 @@ class ResolutionManager:
             self.undo()
         else:
             self.do()
+
+
+class VirtualDisplayManager:
+    """
+    Handles the lifecycle of virtual/headless displays across different 
+    Linux Wayland compositors for Sunshine streaming.
+    """
+    def __init__(
+        self,
+        client_width: int,
+        client_height: int,
+        client_fps: int,
+        client_hdr: bool = False,
+    ) -> None:
+        self.client_width = client_width
+        self.client_height = client_height
+        self.client_fps = client_fps
+        self.client_hdr = client_hdr
+        self.state_file = Path("~/.config/sunshine/virtual_display_state.json").expanduser()
+        self.desktop_env = os.getenv("XDG_CURRENT_DESKTOP", "").lower()
+
+    def do(self) -> None:
+        """Creates a virtual display matching the Moonlight client's specifications."""
+        output_name = None
+
+        if "hyprland" in self.desktop_env:
+            output_name = self._create_hyprland_display()
+        elif "sway" in self.desktop_env:
+            output_name = self._create_sway_display()
+        else:
+            print(f"Unsupported DE for Virtual Displays: {self.desktop_env}. Current support is restricted to Hyprland and Sway.")
+            return
+
+        if output_name:
+            self._save_state(output_name)
+            print(f"Spawned virtual display {output_name} at {self.client_width}x{self.client_height}@{self.client_fps}Hz (HDR: {self.client_hdr})")
+
+    def undo(self) -> None:
+        """Removes the virtual display created during the 'do' phase."""
+        state = self._load_state()
+        if not state or 'output_name' not in state:
+            print("No active virtual display found in state file. Skipping undo.")
+            return
+
+        output_name = state['output_name']
+        
+        if "hyprland" in self.desktop_env:
+            subprocess.run(["hyprctl", "output", "remove", output_name], check=False)
+        elif "sway" in self.desktop_env:
+            subprocess.run(["swaymsg", "output", output_name, "unplug"], check=False)
+        
+        self._clear_state()
+        print(f"Removed virtual display: {output_name}")
+
+    def toggle(self) -> None:
+        if self.state_file.exists():
+            self.undo()
+        else:
+            self.do()
+
+    def _create_hyprland_display(self) -> str:
+        # Spawn the headless output
+        result = subprocess.run(["hyprctl", "output", "create", "headless"], capture_output=True, text=True)
+        # Parse output to capture the display name
+        output_name = "HEADLESS-1" if "HEADLESS-1" in result.stdout else "HEADLESS-2"
+        
+        # Configure resolution, refresh rate, and scale
+        monitor_cmd = f"{output_name},{self.client_width}x{self.client_height}@{self.client_fps},auto,1"
+        
+        # Inject HDR 10-bit color space if requested
+        if self.client_hdr:
+            monitor_cmd += ",bitdepth,10"
+            
+        subprocess.run(["hyprctl", "keyword", "monitor", monitor_cmd], check=True)
+        return output_name
+
+    def _create_sway_display(self) -> str:
+        subprocess.run(["swaymsg", "create_output"], check=True)
+        output_name = "HEADLESS-1"
+        subprocess.run(["swaymsg", "output", output_name, "resolution", f"{self.client_width}x{self.client_height}@{self.client_fps}Hz"], check=True)
+        return output_name
+
+    def _save_state(self, output_name: str) -> None:
+        if not self.state_file.parent.exists():
+            self.state_file.parent.mkdir(parents=True, exist_ok=True)
+        self.state_file.write_text(json.dumps({'output_name': output_name}))
+
+    def _load_state(self) -> dict | None:
+        if self.state_file.exists():
+            return json.loads(self.state_file.read_text())
+        return None
+
+    def _clear_state(self) -> None:
+        if self.state_file.exists():
+            self.state_file.unlink()
