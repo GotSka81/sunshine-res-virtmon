@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+import time
 from collections.abc import Iterable
 from math import floor
 from math import gcd
@@ -237,8 +238,11 @@ class VirtualDisplayManager:
             return
 
         if output_name:
-            self._save_state(output_name)
+            physical_displays = self._disable_physical_displays(exclude=output_name)
+            self._save_state(output_name, physical_displays)
             print(f"Spawned virtual display {output_name} at {self.client_width}x{self.client_height}@{self.client_fps}Hz (HDR: {self.client_hdr})")
+            if physical_displays:
+                print(f"Disabled physical displays: {', '.join(physical_displays)}")
 
     def undo(self) -> None:
         """Removes the virtual display created during the 'do' phase."""
@@ -248,6 +252,10 @@ class VirtualDisplayManager:
             return
 
         output_name = state['output_name']
+        physical_displays = state.get('physical_displays', [])
+        
+        # Restore physical displays first to ensure compositor doesn't crash from 0 outputs
+        self._restore_physical_displays(physical_displays)
         
         if "hyprland" in self.desktop_env:
             subprocess.run(["hyprctl", "output", "remove", output_name], check=False)
@@ -258,12 +266,65 @@ class VirtualDisplayManager:
         
         self._clear_state()
         print(f"Removed virtual display: {output_name}")
+        if physical_displays:
+            print(f"Restored physical displays: {', '.join(physical_displays)}")
 
     def toggle(self) -> None:
         if self.state_file.exists():
             self.undo()
         else:
             self.do()
+
+    def _disable_physical_displays(self, exclude: str) -> list[str]:
+        disabled_displays = []
+        
+        if "hyprland" in self.desktop_env:
+            try:
+                out = subprocess.check_output(["hyprctl", "monitors", "-j"])
+                for m in json.loads(out):
+                    if m["name"] != exclude:
+                        disabled_displays.append(m["name"])
+                        subprocess.run(["hyprctl", "keyword", "monitor", f"{m['name']},disable"], check=False)
+            except Exception as e:
+                print(f"Failed to disable Hyprland displays: {e}")
+                
+        elif "sway" in self.desktop_env:
+            try:
+                out = subprocess.check_output(["swaymsg", "-t", "get_outputs"])
+                for m in json.loads(out):
+                    if m["name"] != exclude and m.get("active"):
+                        disabled_displays.append(m["name"])
+                        subprocess.run(["swaymsg", "output", m["name"], "disable"], check=False)
+            except Exception as e:
+                print(f"Failed to disable Sway displays: {e}")
+                
+        elif "kde" in self.desktop_env or "plasma" in self.desktop_env:
+            try:
+                out = subprocess.check_output(["kscreen-doctor", "--json"])
+                data = json.loads(out)
+                for output in data.get("outputs", []):
+                    if output["name"] != exclude and output.get("connected") and output.get("enabled"):
+                        disabled_displays.append(output["name"])
+                        subprocess.run(["kscreen-doctor", f"output.{output['name']}.disable"], check=False)
+            except Exception as e:
+                print(f"Failed to disable KDE displays: {e}")
+                
+        return disabled_displays
+
+    def _restore_physical_displays(self, displays: list[str]) -> None:
+        if not displays:
+            return
+            
+        if "hyprland" in self.desktop_env:
+            for d in displays:
+                # Reloading to auto restores the monitor in Hyprland
+                subprocess.run(["hyprctl", "keyword", "monitor", f"{d},auto,auto,1"], check=False)
+        elif "sway" in self.desktop_env:
+            for d in displays:
+                subprocess.run(["swaymsg", "output", d, "enable"], check=False)
+        elif "kde" in self.desktop_env or "plasma" in self.desktop_env:
+            for d in displays:
+                subprocess.run(["kscreen-doctor", f"output.{d}.enable"], check=False)
 
     def _create_hyprland_display(self) -> str:
         # Spawn the headless output
@@ -288,8 +349,6 @@ class VirtualDisplayManager:
         return output_name
 
     def _create_kde_display(self) -> str:
-        import time
-        
         # 1. Spawn the virtual monitor process in the background
         # krfb-virtualmonitor requires password and port arguments even when not utilizing VNC
         subprocess.Popen([
@@ -323,10 +382,13 @@ class VirtualDisplayManager:
         
         return output_name
 
-    def _save_state(self, output_name: str) -> None:
+    def _save_state(self, output_name: str, physical_displays: list[str]) -> None:
         if not self.state_file.parent.exists():
             self.state_file.parent.mkdir(parents=True, exist_ok=True)
-        self.state_file.write_text(json.dumps({'output_name': output_name}))
+        self.state_file.write_text(json.dumps({
+            'output_name': output_name,
+            'physical_displays': physical_displays
+        }))
 
     def _load_state(self) -> dict | None:
         if self.state_file.exists():
