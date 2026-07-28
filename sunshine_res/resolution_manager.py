@@ -230,8 +230,10 @@ class VirtualDisplayManager:
             output_name = self._create_hyprland_display()
         elif "sway" in self.desktop_env:
             output_name = self._create_sway_display()
+        elif "kde" in self.desktop_env or "plasma" in self.desktop_env:
+            output_name = self._create_kde_display()
         else:
-            print(f"Unsupported DE for Virtual Displays: {self.desktop_env}. Current support is restricted to Hyprland and Sway.")
+            print(f"Unsupported DE for Virtual Displays: {self.desktop_env}. Current support is restricted to Hyprland, Sway, and KDE.")
             return
 
         if output_name:
@@ -251,6 +253,8 @@ class VirtualDisplayManager:
             subprocess.run(["hyprctl", "output", "remove", output_name], check=False)
         elif "sway" in self.desktop_env:
             subprocess.run(["swaymsg", "output", output_name, "unplug"], check=False)
+        elif "kde" in self.desktop_env or "plasma" in self.desktop_env:
+            subprocess.run(["killall", "krfb-virtualmonitor"], check=False)
         
         self._clear_state()
         print(f"Removed virtual display: {output_name}")
@@ -281,6 +285,42 @@ class VirtualDisplayManager:
         subprocess.run(["swaymsg", "create_output"], check=True)
         output_name = "HEADLESS-1"
         subprocess.run(["swaymsg", "output", output_name, "resolution", f"{self.client_width}x{self.client_height}@{self.client_fps}Hz"], check=True)
+        return output_name
+
+    def _create_kde_display(self) -> str:
+        import time
+        
+        # 1. Spawn the virtual monitor process in the background
+        # krfb-virtualmonitor requires password and port arguments even when not utilizing VNC
+        subprocess.Popen([
+            "krfb-virtualmonitor", 
+            "--name", "sunshine-vm", 
+            "--resolution", f"{self.client_width}x{self.client_height}",
+            "--password", "moonlight", 
+            "--port", "5905"
+        ])
+        
+        # Give KWin a moment to initialize the display
+        time.sleep(2)
+        
+        # 2. KDE prepends "Virtual-" to the assigned name
+        output_name = "Virtual-sunshine-vm"
+        
+        # 3. Add custom mode and set refresh rate (unit is mHz for addCustomMode)
+        mhz = int(self.client_fps * 1000)
+        subprocess.run([
+            "kscreen-doctor", 
+            f"output.{output_name}.addCustomMode.{self.client_width}.{self.client_height}.{mhz}.full"
+        ], check=False)
+        
+        # 4. Apply the exact mode and HDR state
+        hdr_state = "enable" if self.client_hdr else "disable"
+        subprocess.run([
+            "kscreen-doctor", 
+            f"output.{output_name}.mode.{self.client_width}x{self.client_height}@{self.client_fps}",
+            f"output.{output_name}.hdr.{hdr_state}"
+        ], check=False)
+        
         return output_name
 
     def _save_state(self, output_name: str) -> None:
