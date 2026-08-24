@@ -34,7 +34,7 @@ It is recommended to install this tool using `pipx`.
 
 1. Install the package directly from this repository:
    ```bash
-   pipx install --force git+[https://github.com/GotSka81/sunshine-res-virtmon.git](https://github.com/GotSka81/sunshine-res-virtmon.git)
+   pipx install --force git+https://github.com/GotSka81/sunshine-res-virtmon.git
    ```
 
 2. Ensure the installation directory is in your system PATH (if prompted by `pipx`):
