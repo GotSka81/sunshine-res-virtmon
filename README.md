@@ -21,7 +21,8 @@ Before installing, ensure your host machine has the required dependencies for yo
 
 **For KDE Plasma Wayland:**
 You must have the KDE Remote Frame Buffer and KScreen tools installed. 
-* Example (Arch Linux): `sudo pacman -S krfb kscreen`
+* Example (CachyOS): `sudo pacman -S krfb kscreen`
+* Example (Nobara): `sudo dnf install krfb kscreen`
 * **Important:** Sunshine's default capture method (`kms`) cannot capture KWin virtual displays. You must open your Sunshine Web UI, go to **Configuration -> Advanced**, and change **Force Capture Method** to `KWin Screencast`.
 
 **For Hyprland / Sway:**
